@@ -21,6 +21,7 @@ class GeoFenceModule {
     return Future.value();
   }
 
+
   Future<bool> removeGeofence(){
     return Future.value(true);
   }

@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:settle_assessment/utils/constant.dart';
 
-
-
-class CustomTile extends StatelessWidget {
+class CustomTile extends StatefulWidget {
   final String title;
   final String firstOption;
   final String secondOption;
   final String firstLabel;
   final String secondLabel;
   final FieldRequire type;
-  final Function(String) onChangeFirstText;
-  final Function(String) onChangeSecondText;
+  final Future<bool> Function(String) onChangeFirstText;
+  final Future<bool> Function(String) onChangeSecondText;
   final Function(OptionType) onChangeOption;
   final Stream<OptionType> result$;
+  final bool isNumber;
 
   CustomTile({
     @required this.title,
@@ -22,11 +21,28 @@ class CustomTile extends StatelessWidget {
     @required this.firstLabel,
     @required this.onChangeFirstText,
     @required this.onChangeOption,
-    @required this.result$,    
-    @required this.type ,
+    @required this.result$,
+    @required this.type,
+    this.isNumber = false,
     this.secondLabel = '',
     this.onChangeSecondText,
   });
+
+  @override
+  _CustomTileState createState() => _CustomTileState();
+}
+
+class _CustomTileState extends State<CustomTile> {
+  bool isExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    widget.result$.listen(
+      (event) => setState(() => isExpanded = event == OptionType.useConfigure),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,12 +52,29 @@ class CustomTile extends StatelessWidget {
         elevation: 12,
         color: Colors.white70,
         child: ExpansionTile(
-          title: Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
+          key: new GlobalKey(),
+          initiallyExpanded: isExpanded,
+          maintainState: isExpanded,
+          title: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(widget.title,
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              _OptionText(label: firstOption, type: OptionType.useDefault, onChange: onChangeOption, value$: result$,),
-              _OptionText(label: secondOption, type: OptionType.useConfigure, onChange: onChangeOption, value$: result$,),
+              _OptionText(
+                label: widget.firstOption,
+                type: OptionType.useDefault,
+                onChange: widget.onChangeOption,
+                value$: widget.result$,
+              ),
+              _OptionText(
+                label: widget.secondOption,
+                type: OptionType.useConfigure,
+                onChange: widget.onChangeOption,
+                value$: widget.result$,
+              ),
             ],
           ),
           children: getChildren(),
@@ -52,14 +85,23 @@ class CustomTile extends StatelessWidget {
 
   List<Widget> getChildren() {
     final List<Widget> widgets = List<Widget>();
-    widgets.add(_CustomField(defaultValue: firstLabel, enable$: result$,));
+    widgets.add(_CustomField(
+      defaultValue: widget.firstLabel,
+      enable$: widget.result$,
+      isNumber: widget.isNumber,
+      onChange: widget.onChangeFirstText,
+    ));
 
-    switch(type){
-      
+    switch (widget.type) {
       case FieldRequire.single:
         break;
       case FieldRequire.dual:
-        widgets.add(_CustomField(defaultValue: secondLabel, enable$: result$,));
+        widgets.add(_CustomField(
+          defaultValue: widget.secondLabel,
+          enable$: widget.result$,
+          isNumber: widget.isNumber,
+          onChange: widget.onChangeSecondText,
+        ));
         break;
     }
 
@@ -83,23 +125,20 @@ class _OptionText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onChange(type),
+      onTap: () => onChange(type),
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             StreamBuilder<OptionType>(
               stream: value$,
               builder: (ctx, snapshot) => Checkbox(
-                value: snapshot.data == OptionType.useConfigure,
+                value: snapshot.data == type,
                 onChanged: (value) => onChange(type),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(label),
-            )
+            Text(label),
           ],
         ),
       ),
@@ -107,24 +146,72 @@ class _OptionText extends StatelessWidget {
   }
 }
 
-class _CustomField extends StatelessWidget {
-  final TextEditingController _controller;
+class _CustomField extends StatefulWidget {
   final Stream<OptionType> enable$;
+  final String label;
+  final bool isNumber;
+  final Future<bool> Function(String) onChange;
 
-  _CustomField({@required this.enable$, @required String defaultValue})
-      : _controller = TextEditingController(text: defaultValue);
+  _CustomField(
+      {@required this.enable$,
+      @required String defaultValue,
+      @required this.onChange,
+      this.isNumber = false})
+      : this.label = defaultValue;
+
+  @override
+  __CustomFieldState createState() => __CustomFieldState();
+}
+
+class __CustomFieldState extends State<_CustomField> {
+  final TextEditingController _controller;
+  bool insertedValue = false;
+  String _errMessage;
+
+  __CustomFieldState() : _controller = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+
+    _controller.addListener(() async {
+      try {
+        if(_controller.text.length > 0 && insertedValue == false) insertedValue = true;
+
+        await widget.onChange(_controller.text);
+
+        setState(() => _errMessage = null);
+      } catch (err) {
+        if (insertedValue)
+          setState(() => _errMessage = err);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+
+    _controller.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<OptionType>(
-      stream: enable$,
-      builder: (ctx, snapshot) => TextField(
-        readOnly: snapshot.data == OptionType.useDefault,
-        controller: _controller,
-        decoration: InputDecoration(
-          labelText: 'Value',
-          border: OutlineInputBorder(
-            borderSide: BorderSide(width: 1, color: Colors.black),
+      stream: widget.enable$,
+      builder: (ctx, snapshot) => Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: TextField(
+          keyboardType: widget.isNumber
+              ? TextInputType.numberWithOptions(decimal: true)
+              : TextInputType.text,
+          enabled: snapshot.data != OptionType.useDefault,
+          controller: _controller,
+          decoration: InputDecoration(
+            errorText: _errMessage,
+            labelText: widget.label,
+            border: OutlineInputBorder(
+              borderSide: BorderSide(width: 1, color: Colors.black),
+            ),
           ),
         ),
       ),

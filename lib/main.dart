@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:settle_assessment/bloc/blocConfiguration.dart';
 import 'package:settle_assessment/utils/constant.dart';
-import 'monitor.dart';
+import 'package:toast/toast.dart';
 import 'widgets/CustomTile.dart';
 
 void main() {
@@ -40,15 +40,15 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
 
-    _bloc = BlocConfiguration(navigate: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => MonitorScreen())));
+    _bloc = BlocConfiguration(context: context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.blueAccent,
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      body: ListView(
+        padding: EdgeInsets.symmetric(vertical:40),
         children: [
           _CustomTitle('My Assessment'),
           CustomTile(
@@ -60,6 +60,7 @@ class _MyHomePageState extends State<MyHomePage> {
             onChangeOption: _bloc.changeRadiusOption,
             onChangeFirstText: _bloc.insertRadius,
             result$: _bloc.optRadius,
+            isNumber: true,
           ),
           CustomTile(
             title: 'Geolocation of Zone ',
@@ -72,6 +73,7 @@ class _MyHomePageState extends State<MyHomePage> {
             onChangeFirstText: _bloc.insertLongitude,
             onChangeSecondText: _bloc.insertLatitude,
             result$: _bloc.optGeo,
+            isNumber: true,
           ),
           CustomTile(
             title: 'Wifi Name ',
@@ -84,6 +86,15 @@ class _MyHomePageState extends State<MyHomePage> {
             result$: _bloc.optWifi,
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.black38,
+        label: Text('Begin'),
+        onPressed: () {
+          FocusScope.of(context).requestFocus(FocusNode());
+          if (_bloc.enableSubmit() == false)
+            Toast.show('Check Configure Field', context);
+        },
       ),
     );
   }
@@ -98,7 +109,7 @@ class _CustomTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(20.0),
         child: Text(value, style: _style),
       ),
     );

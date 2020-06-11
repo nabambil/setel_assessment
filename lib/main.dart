@@ -17,18 +17,14 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
-          fontFamily: 'Poppins'),
+          fontFamily: fontName),
       debugShowCheckedModeBanner: false,
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-
-  final String title;
-
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
@@ -41,6 +37,12 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
 
     _bloc = BlocConfiguration(context: context);
+  }
+
+  @override
+  void dispose() {
+    _bloc.dispose();
+    super.dispose();
   }
 
   @override
@@ -94,9 +96,15 @@ class _MyHomePageState extends State<MyHomePage> {
           FocusScope.of(context).requestFocus(FocusNode());
           if (_bloc.enableSubmit() == false)
             Toast.show('Check Configure Field', context);
+          else 
+            showLoading();
         },
       ),
     );
+  }
+
+  void showLoading() {
+    showDialog(context: context, child:Center(child: CircularProgressIndicator()));
   }
 }
 
@@ -120,7 +128,7 @@ class _CustomTitle extends StatelessWidget {
       fontWeight: FontWeight.w200,
       fontSize: 32,
       color: Colors.white,
-      fontFamily: 'Poppins',
+      fontFamily: fontName,
     );
   }
 }

@@ -32,6 +32,8 @@ dependencies:
   flutter_geofence: ^0.1.5
   rxdart: ^0.24.1
   toast: ^0.1.5
+  connectivity: ^0.4.8+6
+  location: ^3.0.2
 
 dev_dependencies:
   flutter_test:

@@ -2,8 +2,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:settle_assessment/features/geofence.dart';
 import 'package:settle_assessment/monitor.dart';
 import 'package:settle_assessment/utils/constant.dart';
+
+import 'blocMonitor.dart';
 
 class BlocConfiguration {
   final BuildContext context;
@@ -23,22 +26,42 @@ class BlocConfiguration {
 
   BlocConfiguration({@required this.context});
 
-  void _submit() {
+  void _submit() async {
     if (_optionRadius.value == OptionType.useDefault) radius = 500;
     if (_optionGeo.value == OptionType.useDefault) {
-      //get geo location
-    }
-    if (_optionWifi.value == OptionType.useDefault) {
-      // use any wifi
+      final location = await GeoFenceModule.currentLocation;
+      latitude = location.latitude;
+      longitude = location.longitude;
     }
 
+    final bloc = BlocMonitor(latitude, longitude, radius, wifi);
+    
+    Navigator.pop(context);
     Navigator.push(
-        context, MaterialPageRoute(builder: (ctx) => MonitorScreen()));
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => MonitorScreen(bloc: bloc),
+      ),
+    );
   }
 
-  void changeRadiusOption(OptionType value) => _optionRadius.add(value);
-  void changeWifiOption(OptionType value) => _optionWifi.add(value);
-  void changeGeoOption(OptionType value) => _optionGeo.add(value);
+  void changeRadiusOption(OptionType value) {
+    if (value == OptionType.useDefault) radius = null;
+    _optionRadius.add(value);
+  }
+
+  void changeWifiOption(OptionType value) {
+    if (value == OptionType.useDefault) wifi = null;
+    _optionWifi.add(value);
+  }
+
+  void changeGeoOption(OptionType value) {
+    if (value == OptionType.useDefault) {
+      latitude = null;
+      longitude = null;
+    }
+    _optionGeo.add(value);
+  }
 
   Future<bool> insertLongitude(String value) {
     try {
@@ -49,6 +72,8 @@ class BlocConfiguration {
     } catch (err) {
       longitude = null;
 
+      if (radius == 0) throw 'Invalid Value';
+
       return Future.error(err is String ? err : 'Invalid value');
     }
   }
@@ -57,6 +82,8 @@ class BlocConfiguration {
     try {
       if (value.length == 0) throw 'Please insert field';
       latitude = double.parse(value);
+
+      if (latitude == 0.0) throw 'Invalid value';
 
       return Future.value(true);
     } catch (err) {
@@ -71,6 +98,8 @@ class BlocConfiguration {
       if (value.length == 0) throw 'Please insert field';
       radius = int.parse(value);
 
+      if (latitude == 0.0) throw 'Invalid value';
+
       return Future.value(true);
     } catch (err) {
       radius = null;
@@ -82,10 +111,8 @@ class BlocConfiguration {
   Future<bool> insertWifi(String value) {
     try {
       wifi = value;
-      if (value.length == 0) {
-        wifi = null;
-        throw 'Please insert field';
-      }
+      if (value.length == 0) throw 'Please insert field';
+
       return Future.value(true);
     } catch (err) {
       wifi = null;

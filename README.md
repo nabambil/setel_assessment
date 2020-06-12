@@ -2,6 +2,7 @@
 
 Introducing my assessment flutter mobile app, this app will work basic features on Apple Home and Google Home which detect the user reach area when nearby. Please have a look the design:
 
+![demo.gif](assets/name-of-giphy.gif)
 
 # Instruction 
 

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter_geofence/geofence.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:settle_assessment/features/connectivity.dart';
 import 'package:settle_assessment/features/geofence.dart';
@@ -18,51 +17,68 @@ class BlocMonitor {
 
   BlocMonitor(this.latitude, this.longitude, this.radius, this.wifi)
       : this._activity = SignalActivity(wifi: wifi) {
-    _locationPoint.add(Coordinate(latitude, longitude));
     geoModule = GeoFenceModule(
       radius: radius,
-      callbackExit: listenGeoExit,
-      callbackEntry: listenGeoEntry,
       latitude: latitude,
       longitude: longitude,
+      callbackStatus: listenGeo,
+      callbackDistance: listenDistance,
     );
 
-    if(wifi != null) _wifiLatestName.add(wifi);
+    if (wifi != null) _wifiLatestName.add(wifi);
 
     connectionListening = _activity.listenConnection.listen((event) {
-      if(_activity.connectAny == true) _activity.wifiName.then((value) => _wifiLatestName.add(value));
+      if (_activity.connectAny == true)
+        _activity.wifiName.then((value) => _wifiLatestName
+            .add(value == '<unknown ssid>' ? 'no connection' : value));
       _connection.add(event);
-      timer = Timer.periodic(Duration(milliseconds: 1500), (_) => _activity.getStrength().then((value) => _connection.add(value)));
     });
-    
+    timer = Timer.periodic(Duration(milliseconds: 1500), (value) {
+      try {
+        _activity.getStrength().then((value) => _connection.add(value));
+      } catch (err) {
+        print(err);
+        value.cancel();
+      }
+    });
   }
 
-  final _locationPoint =
-      BehaviorSubject<Coordinate>.seeded(Coordinate(0.0, 0.0));
   final _zone = BehaviorSubject<ZoneStatus>.seeded(ZoneStatus.outside);
+  final _distance = BehaviorSubject<double>.seeded(0.0);
   final _connection =
       BehaviorSubject<ConnectionStatus>.seeded(ConnectionStatus.disconnected);
-  final _wifiLatestName =
-      BehaviorSubject<String>();
+  final _wifiLatestName = BehaviorSubject<String>();
 
   Stream<ZoneStatus> get statZone => _zone.stream;
+  Stream<double> get statDistance => _distance.stream;
   Stream<ConnectionStatus> get statConnection => _connection.stream;
-  Stream<Coordinate> get point => _locationPoint.stream;
-  Stream<String> get wifiName => _wifiLatestName.stream; 
+  Stream<ZoneStatus> get statCombination =>
+      CombineLatestStream([statZone, statConnection], (values) {
+        for (final value in values) {
+          if (value is ZoneStatus) {
+            if (value == ZoneStatus.inside) return value;
+          } else if (value is ConnectionStatus) {
+            if (value != ConnectionStatus.disconnected)
+              return ZoneStatus.inside;
+          }
+        }
 
-  void listenGeoExit(Geolocation _) => _zone.add(ZoneStatus.outside);
-  void listenGeoEntry(Geolocation _) => _zone.add(ZoneStatus.inside);
-  void startListenFenceActivity() => geoModule.startListen();
+        return ZoneStatus.outside;
+      });
+  Stream<String> get wifiName => _wifiLatestName.stream;
+
+  void listenGeo(ZoneStatus value) => _zone.add(value);
+  void listenDistance(double value) => _distance.add(value);
 
   Future<void> dispose() async {
     try {
       timer.cancel();
-      geoModule.removeGeofence();
-      _locationPoint.close();
       _zone.close();
       _connection.close();
+      _distance.close();
       _wifiLatestName.close();
       connectionListening.cancel();
+      geoModule.dispose();
     } catch (err) {
       return Future.error(err);
     }

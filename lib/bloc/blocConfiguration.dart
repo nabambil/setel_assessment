@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -35,14 +37,26 @@ class BlocConfiguration {
     }
 
     final bloc = BlocMonitor(latitude, longitude, radius, wifi);
-    
-    Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (ctx) => MonitorScreen(bloc: bloc),
-      ),
-    );
+
+    Timer(Duration(milliseconds: 1000), () {
+      Navigator.pop(context);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (ctx) => MonitorScreen(bloc: bloc),
+        ),
+      ).then((value) => reset());
+    });
+  }
+
+  void reset() {
+    longitude = null;
+    latitude = null;
+    wifi = null;
+    radius = null;
+    _optionRadius.add(OptionType.useDefault);
+    _optionWifi.add(OptionType.useDefault);
+    _optionGeo.add(OptionType.useDefault);
   }
 
   void changeRadiusOption(OptionType value) {
@@ -68,11 +82,13 @@ class BlocConfiguration {
       if (value.length == 0) throw 'Please insert field';
       longitude = double.parse(value);
 
+      if (longitude == 0.0) throw 'Invalid value';
+      if (!(longitude > -180.0 && longitude < 180))
+        throw 'Invalid value, must be between -180.0 to 180.0 ';
+
       return Future.value(true);
     } catch (err) {
       longitude = null;
-
-      if (radius == 0) throw 'Invalid Value';
 
       return Future.error(err is String ? err : 'Invalid value');
     }
@@ -84,6 +100,8 @@ class BlocConfiguration {
       latitude = double.parse(value);
 
       if (latitude == 0.0) throw 'Invalid value';
+      if (!(latitude > -90.0 && latitude < 90))
+        throw 'Invalid value, must be between -90.0 to 90.0';
 
       return Future.value(true);
     } catch (err) {
@@ -98,7 +116,7 @@ class BlocConfiguration {
       if (value.length == 0) throw 'Please insert field';
       radius = int.parse(value);
 
-      if (latitude == 0.0) throw 'Invalid value';
+      if (radius == 0.0) throw 'Invalid value';
 
       return Future.value(true);
     } catch (err) {
@@ -122,6 +140,9 @@ class BlocConfiguration {
   }
 
   bool enableSubmit() {
+    showDialog(
+        context: context, child: Center(child: CircularProgressIndicator()));
+
     if (_optionRadius.value == OptionType.useConfigure && radius == null)
       return false;
     if (_optionGeo.value == OptionType.useConfigure &&

@@ -12,13 +12,6 @@ class MonitorScreen extends StatefulWidget {
 }
 
 class _MonitorScreenState extends State<MonitorScreen> {
-
-  @override
-  void initState() {
-    super.initState();
-
-    widget.bloc.startListenFenceActivity();
-  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,7 +34,11 @@ class _BuildBody extends StatelessWidget {
       height: MediaQuery.of(context).size.height,
       child: Column(children: <Widget>[
         Spacer(),
-        _CustomCard(result$: _bloc.statConnection),
+        _CustomCard(
+          resultSignal$: _bloc.statConnection,
+          resultZone$: _bloc.statCombination,
+          resultDistance$: _bloc.statDistance,
+        ),
         _CustomInfo(
           title: 'Geo Point',
           subTitle: '** ${_bloc.latitude} | ${_bloc.longitude}',
@@ -95,9 +92,15 @@ class _BuildBody extends StatelessWidget {
 }
 
 class _CustomCard extends StatelessWidget {
-  final Stream<ConnectionStatus> result$;
+  final Stream<ConnectionStatus> resultSignal$;
+  final Stream<ZoneStatus> resultZone$;
+  final Stream<double> resultDistance$;
 
-  _CustomCard({@required this.result$});
+  _CustomCard({
+    @required this.resultSignal$,
+    @required this.resultZone$,
+    @required this.resultDistance$,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -109,26 +112,37 @@ class _CustomCard extends StatelessWidget {
         shadowColor: Colors.white,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24),
-          child: StreamBuilder<ConnectionStatus>(
-              stream: result$,
-              builder: (context, snapshot) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      snapshot.data != ConnectionStatus.disconnected
-                          ? 'Inside'
-                          : 'Outside',
-                      style: TextStyle(fontSize: 32, fontFamily: fontName),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Text(
-                          'Signal Strength : ${getStrength(snapshot.data)}'),
-                    ),
-                  ],
-                );
-              }),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              StreamBuilder<ZoneStatus>(
+                stream: resultZone$,
+                builder: (context, snapshot) => Text(
+                  snapshot.data == ZoneStatus.inside ? 'Inside' : 'Outside',
+                  style: TextStyle(fontSize: 32, fontFamily: fontName),
+                ),
+              ),
+              StreamBuilder<ConnectionStatus>(
+                stream: resultSignal$,
+                builder: (context, snapshot) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child:
+                        Text('Signal Strength : ${getStrength(snapshot.data)}'),
+                  );
+                },
+              ),
+              StreamBuilder<double>(
+                stream: resultDistance$,
+                builder: (context, snapshot) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text('Distance (meter) : ${snapshot.data.toStringAsFixed(3)}'),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

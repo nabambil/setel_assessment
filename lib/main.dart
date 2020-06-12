@@ -72,8 +72,8 @@ class _MyHomePageState extends State<MyHomePage> {
             firstLabel: 'latitude (decimal)',
             secondLabel: 'longitude (decimal)',
             onChangeOption: _bloc.changeGeoOption,
-            onChangeFirstText: _bloc.insertLongitude,
-            onChangeSecondText: _bloc.insertLatitude,
+            onChangeFirstText: _bloc.insertLatitude,
+            onChangeSecondText: _bloc.insertLongitude,
             result$: _bloc.optGeo,
             isNumber: true,
           ),
@@ -94,17 +94,13 @@ class _MyHomePageState extends State<MyHomePage> {
         label: Text('Begin'),
         onPressed: () {
           FocusScope.of(context).requestFocus(FocusNode());
-          if (_bloc.enableSubmit() == false)
+          if (_bloc.enableSubmit() == false){
+            Navigator.pop(context);
             Toast.show('Check Configure Field', context);
-          else 
-            showLoading();
+          }
         },
       ),
     );
-  }
-
-  void showLoading() {
-    showDialog(context: context, child:Center(child: CircularProgressIndicator()));
   }
 }
 

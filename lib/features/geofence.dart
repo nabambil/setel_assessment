@@ -1,46 +1,47 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:flutter_geofence/geofence.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:location/location.dart';
+import 'package:settle_assessment/utils/constant.dart';
 
 class GeoFenceModule {
-  final Geolocation location;
-  final Function(Geolocation) callbackExit;
-  final Function(Geolocation) callbackEntry;
+  // final Geolocation location;
+  final Location _location;
+  final Geolocator _geolocation;
+  final Function(ZoneStatus) callbackStatus;
+  final Function(double) callbackDistance;
+  final double latitude;
+  final double longitude;
+  final int radius;
+  StreamSubscription<LocationData> streaming;
 
-  GeoFenceModule(
-      {@required int radius,
-      @required this.callbackExit,
-      @required this.callbackEntry,
-      double latitude,
-      double longitude})
-      : this.location = Geolocation(
-          id: '0',
-          latitude: latitude,
-          longitude: longitude,
-          radius: radius.toDouble(),
-        ) {
-    Geofence.initialize();
-    Geofence.addGeolocation(location, GeolocationEvent.exit);
-    Geofence.addGeolocation(location, GeolocationEvent.entry);
+  GeoFenceModule({
+    @required this.radius,
+    @required this.callbackStatus,
+    @required this.callbackDistance,
+    @required this.latitude,
+    @required this.longitude,
+  })  : _location = Location(),
+        _geolocation = Geolocator() {
+    streaming = _location.onLocationChanged.listen((event) async {
+      final distance = await _geolocation.distanceBetween(
+        event.latitude,
+        event.longitude,
+        latitude,
+        longitude,
+      );
+      print(distance);
+      callbackDistance(distance);
+      callbackStatus(distance < radius ? ZoneStatus.inside : ZoneStatus.outside);
+    });
   }
 
   static Future<LocationData> get currentLocation {
     return Location().getLocation();
   }
 
-  void startListen(){
-    Geofence.startListening(GeolocationEvent.exit, callbackExit);
-    Geofence.startListening(GeolocationEvent.entry, callbackEntry);
-  }
-
-  Future<void> removeGeofence() async {
-    try {
-      await Geofence.removeGeolocation(location, GeolocationEvent.exit);
-      await Geofence.removeGeolocation(location, GeolocationEvent.entry);
-    } catch (err) {
-      return Future.error(err);
-    }
-
-    return Future.value();
+  void dispose(){
+    streaming.cancel();
   }
 }
